@@ -4,13 +4,13 @@ CPPFLAGS	=
 LDFLAGS		= 
 LDSHFLAGS	= -shared
 INSTALLCMD	= /usr/bin/install -c
-SAMBA_SOURCE	= /usr/local/src/samba/source
+SAMBA_SOURCE=/home/adie/repo/samba-3.5.21/source3
+FLAGS		=  $(CFLAGS) -I/usr/include -Iinclude -I$(SAMBA_SOURCE)/librpc -I$(SAMBA_SOURCE)/tdb/include -I$(SAMBA_SOURCE)/../lib/replace -I$(SAMBA_SOURCE)/include -I$(SAMBA_SOURCE)/ubiqx -I$(SAMBA_SOURCE)/smbwrapper  -I. $(CPPFLAGS) -I$(SAMBA_SOURCE) -I$(SAMBA_SOURCE)/..
 SHLIBEXT	= so
 OBJEXT		= o
-FLAGS		=  $(CFLAGS) -I/usr/include -Iinclude -I$(SAMBA_SOURCE)/librpc -I$(SAMBA_SOURCE)/tdb/include -I$(SAMBA_SOURCE)/lib/replace -I$(SAMBA_SOURCE)/include -I$(SAMBA_SOURCE)/ubiqx -I$(SAMBA_SOURCE)/smbwrapper  -I. $(CPPFLAGS) -I$(SAMBA_SOURCE)
 
 
-prefix		= /usr/lib/samba
+prefix		= /usr/local/samba
 libdir		= ${prefix}/lib
 
 VFS_LIBDIR	= $(libdir)/vfs
