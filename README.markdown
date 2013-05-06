@@ -60,7 +60,7 @@ For example:
 VFSX is distributed under the open source [Mozilla Public License][8]. The file  `vfsx/LICENSE` contains the license terms.
 
 Copyright (C) 2004 Steven R. Farley. All rights reserved.  
-Copyright (C) 2009 Alexander Duscheleit.
+Copyright (C) 2009 Alexander Duscheleit.  
 Copyright (C) 2013 Nurahmadie.
 
   [1]: http://gitorious.org/vfsx/vfsx/blobs/raw/master/docs/config.png
