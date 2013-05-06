@@ -30,6 +30,9 @@
  */
 
 #include "includes.h"
+#include "smbd/proto.h"
+#include "syslog.h"
+#include "fcntl.h"
 
 #undef DBGC_CLASS
 #define DBGC_CLASS DBGC_VFS
@@ -216,117 +219,119 @@ static int vfsx_rmdir(vfs_handle_struct *handle, const char *path)
 	return result;
 }
 
-static int vfsx_open(vfs_handle_struct *handle, const char *fname, files_struct *fsp, int flags, mode_t mode)
+static int vfsx_open(vfs_handle_struct *handle, struct smb_filename *fname, files_struct *fsp, int flags, mode_t mode)
 {
 	int result = -1;
 	int count;
 	char buf[VFSX_MSG_OUT_SIZE];
 
-	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "open:%s:%s,%d,%d", handle->conn->origpath, fname, flags, mode);
+	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "open:%s:%s,%d,%d", handle->conn->origpath, fname->base_name, flags, mode);
 	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
 		result = SMB_VFS_NEXT_OPEN(handle, fname, fsp, flags, mode);
 	}
 	return result;
 }
 
-static int vfsx_close(vfs_handle_struct *handle, files_struct *fsp, int fd)
+static int vfsx_close(vfs_handle_struct *handle, files_struct *fsp)
 {
 	int result = -1;
 	int count;
 	char buf[VFSX_MSG_OUT_SIZE];
 
-	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "close:%s:%s", fsp->conn->origpath, fsp->fsp_name);
+	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "close:%s:%s", fsp->conn->origpath, fsp->fsp_name->base_name);
 	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
-		result = SMB_VFS_NEXT_CLOSE(handle, fsp, fd);
+		result = SMB_VFS_NEXT_CLOSE(handle, fsp);
 	}
 	return result;
 }
 
-static ssize_t vfsx_read(vfs_handle_struct *handle, files_struct *fsp, int fd, void *data, size_t n)
+static ssize_t vfsx_read(vfs_handle_struct *handle, files_struct *fsp, void *data, size_t n)
 {
 	ssize_t result = -1;
 	int count;
 	char buf[VFSX_MSG_OUT_SIZE];
 
-	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "read:%s:%s", fsp->conn->origpath, fsp->fsp_name);
+	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "read:%s:%s", fsp->conn->origpath, fsp->fsp_name->base_name);
 	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
-		result = SMB_VFS_NEXT_READ(handle, fsp, fd, data, n);
+		result = SMB_VFS_NEXT_READ(handle, fsp, data, n);
 	}
 	return result;
 }
 
-static ssize_t vfsx_write(vfs_handle_struct *handle, files_struct *fsp, int fd, const void *data, size_t n)
+static ssize_t vfsx_write(vfs_handle_struct *handle, files_struct *fsp, const void *data, size_t n)
 {
 	ssize_t result = -1;
 	int count;
 	char buf[VFSX_MSG_OUT_SIZE];
 
-	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "write:%s:%s", fsp->conn->origpath, fsp->fsp_name);
+	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "write:%s:%s", fsp->conn->origpath, fsp->fsp_name->base_name);
 	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
-		result = SMB_VFS_NEXT_WRITE(handle, fsp, fd, data, n);
+		result = SMB_VFS_NEXT_WRITE(handle, fsp, data, n);
 	}
 	return result;
 }
 
-static ssize_t vfsx_pread(vfs_handle_struct *handle, files_struct *fsp, int fd, void *data, size_t n, SMB_OFF_T offset)
+static ssize_t vfsx_pread(vfs_handle_struct *handle, files_struct *fsp, void *data, size_t n, off_t offset)
 {
 	ssize_t result = -1;
 	int count;
 	char buf[VFSX_MSG_OUT_SIZE];
 
-	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "pread:%s:%s", fsp->conn->origpath, fsp->fsp_name);
+	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "pread:%s:%s", fsp->conn->origpath, fsp->fsp_name->base_name);
 	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
-		result = SMB_VFS_NEXT_PREAD(handle, fsp, fd, data, n, offset);
+		result = SMB_VFS_NEXT_PREAD(handle, fsp, data, n, offset);
 	}
 	return result;
 }
 
-static ssize_t vfsx_pwrite(vfs_handle_struct *handle, files_struct *fsp, int fd, const void *data, size_t n, SMB_OFF_T offset)
+static ssize_t vfsx_pwrite(vfs_handle_struct *handle, files_struct *fsp, const void *data, size_t n, off_t offset)
 {
 	ssize_t result = -1;
 	int count;
 	char buf[VFSX_MSG_OUT_SIZE];
 
-	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "pwrite:%s:%s", fsp->conn->origpath, fsp->fsp_name);
+	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "pwrite:%s:%s", fsp->conn->origpath, fsp->fsp_name->base_name);
 	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
-		result = SMB_VFS_NEXT_PWRITE(handle, fsp, fd, data, n, offset);
+		result = SMB_VFS_NEXT_PWRITE(handle, fsp, data, n, offset);
 	}
 	return result;
 }
 
-static SMB_OFF_T vfsx_lseek(vfs_handle_struct *handle, files_struct *fsp, int filedes, SMB_OFF_T offset, int whence)
+static off_t vfsx_lseek(vfs_handle_struct *handle, files_struct *fsp, off_t offset, int whence)
 {
-	SMB_OFF_T result = -1;
+	off_t result = -1;
 	int count;
 	char buf[VFSX_MSG_OUT_SIZE];
 
-	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "lseek:%s:%s", fsp->conn->origpath, fsp->fsp_name);
+	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "lseek:%s:%s", fsp->conn->origpath, fsp->fsp_name->base_name);
 	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
-		result = SMB_VFS_NEXT_LSEEK(handle, fsp, filedes, offset, whence);
+		result = SMB_VFS_NEXT_LSEEK(handle, fsp, offset, whence);
 	}
 	return result;
 }
 
-static int vfsx_rename(vfs_handle_struct *handle, const char *old, const char *new)
+static int vfsx_rename(vfs_handle_struct *handle,
+                       const struct smb_filename *old,
+                       const struct smb_filename *new)
 {
 	int result = -1;
 	int count;
 	char buf[VFSX_MSG_OUT_SIZE];
 
-	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "rename:%s:%s,%s", handle->conn->origpath, old, new);
+	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "rename:%s:%s,%s", handle->conn->origpath, old->base_name, new->base_name);
 	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
 		result = SMB_VFS_NEXT_RENAME(handle, old, new);
 	}
 	return result;
 }
 
-static int vfsx_unlink(vfs_handle_struct *handle, const char *path)
+static int vfsx_unlink(vfs_handle_struct *handle, const struct smb_filename *path)
 {
 	int result = -1;
 	int count;
 	char buf[VFSX_MSG_OUT_SIZE];
 
-	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "unlink:%s:%s", handle->conn->origpath, path);
+	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "unlink:%s:%s", handle->conn->origpath, path->base_name);
 	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
 		result = SMB_VFS_NEXT_UNLINK(handle, path);
 	}
@@ -369,144 +374,33 @@ static int vfsx_fchmod_acl(vfs_handle_struct *handle, files_struct *fsp, int fd,
 
 /* VFS operations */
 
-static vfs_op_tuple vfsx_op_tuples[] = {
+struct vfs_fn_pointers vfsx_fns = {
 
-	/* Disk operations */
+    /* Disk operations */
+    .connect_fn = vfsx_connect,
+    .disconnect = vfsx_disconnect,
 
-	{SMB_VFS_OP(vfsx_connect), 		SMB_VFS_OP_CONNECT, 	SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(vfsx_disconnect), 	SMB_VFS_OP_DISCONNECT, 	SMB_VFS_LAYER_TRANSPARENT},
+    /* Directory operations */
+    .opendir = vfsx_opendir,
+    .mkdir = vfsx_mkdir,
+    .rmdir = vfsx_rmdir,
 
-	/* Directory operations */
-
-	{SMB_VFS_OP(vfsx_opendir), 	SMB_VFS_OP_OPENDIR, 	SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(vfsx_mkdir), 	SMB_VFS_OP_MKDIR, 		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(vfsx_rmdir), 	SMB_VFS_OP_RMDIR, 		SMB_VFS_LAYER_TRANSPARENT},
-
-	/* File operations */
-
-	{SMB_VFS_OP(vfsx_open), 		SMB_VFS_OP_OPEN, 		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(vfsx_close), 		SMB_VFS_OP_CLOSE, 		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(vfsx_read),			SMB_VFS_OP_READ,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(vfsx_write),		SMB_VFS_OP_WRITE,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(vfsx_pread),		SMB_VFS_OP_PREAD,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(vfsx_pwrite),		SMB_VFS_OP_PWRITE,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(vfsx_lseek),		SMB_VFS_OP_LSEEK,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(vfsx_rename), 		SMB_VFS_OP_RENAME, 		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(vfsx_unlink), 		SMB_VFS_OP_UNLINK, 		SMB_VFS_LAYER_TRANSPARENT},
-/*
-	{SMB_VFS_OP(vfsx_chmod), 		SMB_VFS_OP_CHMOD, 		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(vfsx_fchmod), 		SMB_VFS_OP_FCHMOD, 		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(vfsx_chmod_acl), 	SMB_VFS_OP_CHMOD_ACL, 	SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(vfsx_fchmod_acl), 	SMB_VFS_OP_FCHMOD_ACL, 	SMB_VFS_LAYER_TRANSPARENT},
-*/
-
-	/* Finish VFS operations definition */
-
-	{SMB_VFS_OP(NULL), 				SMB_VFS_OP_NOOP, 		SMB_VFS_LAYER_NOOP}
+    /* File operations */
+    .open_fn = vfsx_open,
+    .close_fn = vfsx_close,
+    .vfs_read = vfsx_read,
+    .write = vfsx_write,
+    .pread = vfsx_pread,
+    .pwrite = vfsx_pwrite,
+    .lseek = vfsx_lseek,
+    .rename = vfsx_rename,
+    .unlink = vfsx_unlink,
 };
 
-/*
-	// This is the complete list of implementable VFS operations, from the Samba
-	// distribution file "examples/VFS/skel_transparent.c".
-
-	// Disk operations
-
-	{SMB_VFS_OP(skel_connect),				SMB_VFS_OP_CONNECT, 				SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_disconnect),			SMB_VFS_OP_DISCONNECT,				SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_disk_free),			SMB_VFS_OP_DISK_FREE,				SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_get_quota),			SMB_VFS_OP_GET_QUOTA,				SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_set_quota),			SMB_VFS_OP_SET_QUOTA,				SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_get_shadow_copy_data),	SMB_VFS_OP_GET_SHADOW_COPY_DATA,	SMB_VFS_LAYER_TRANSPARENT},
-
-	// Directory operations
-
-	{SMB_VFS_OP(skel_opendir),			SMB_VFS_OP_OPENDIR,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_readdir),			SMB_VFS_OP_READDIR,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_mkdir),			SMB_VFS_OP_MKDIR,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_rmdir),			SMB_VFS_OP_RMDIR,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_closedir),			SMB_VFS_OP_CLOSEDIR,	SMB_VFS_LAYER_TRANSPARENT},
-
-	// File operations
-
-	{SMB_VFS_OP(skel_open),				SMB_VFS_OP_OPEN,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_close),			SMB_VFS_OP_CLOSE,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_read),				SMB_VFS_OP_READ,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_write),			SMB_VFS_OP_WRITE,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_lseek),			SMB_VFS_OP_LSEEK,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_rename),			SMB_VFS_OP_RENAME,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_fsync),			SMB_VFS_OP_FSYNC,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_stat),				SMB_VFS_OP_STAT,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_fstat),			SMB_VFS_OP_FSTAT,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_lstat),			SMB_VFS_OP_LSTAT,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_unlink),			SMB_VFS_OP_UNLINK,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_chmod),			SMB_VFS_OP_CHMOD,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_fchmod),			SMB_VFS_OP_FCHMOD,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_chown),			SMB_VFS_OP_CHOWN,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_fchown),			SMB_VFS_OP_FCHOWN,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_chdir),			SMB_VFS_OP_CHDIR,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_getwd),			SMB_VFS_OP_GETWD,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_utime),			SMB_VFS_OP_UTIME,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_ftruncate),		SMB_VFS_OP_FTRUNCATE,	SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_lock),				SMB_VFS_OP_LOCK,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_symlink),			SMB_VFS_OP_SYMLINK,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_readlink),			SMB_VFS_OP_READLINK,	SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_link),				SMB_VFS_OP_LINK,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_mknod),			SMB_VFS_OP_MKNOD,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_realpath),			SMB_VFS_OP_REALPATH,	SMB_VFS_LAYER_TRANSPARENT},
-
-	// NT File ACL operations
-
-	{SMB_VFS_OP(skel_fget_nt_acl),	SMB_VFS_OP_FGET_NT_ACL,	SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_get_nt_acl),	SMB_VFS_OP_GET_NT_ACL,	SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_fset_nt_acl),	SMB_VFS_OP_FSET_NT_ACL,	SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_set_nt_acl),	SMB_VFS_OP_SET_NT_ACL,	SMB_VFS_LAYER_TRANSPARENT},
-
-	// POSIX ACL operations
-
-	{SMB_VFS_OP(skel_chmod_acl),	SMB_VFS_OP_CHMOD_ACL,	SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_fchmod_acl),	SMB_VFS_OP_FCHMOD_ACL,	SMB_VFS_LAYER_TRANSPARENT},
-
-	{SMB_VFS_OP(skel_sys_acl_get_entry),		SMB_VFS_OP_SYS_ACL_GET_ENTRY,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_get_tag_type),		SMB_VFS_OP_SYS_ACL_GET_TAG_TYPE,	SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_get_permset),		SMB_VFS_OP_SYS_ACL_GET_PERMSET,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_get_qualifier),	SMB_VFS_OP_SYS_ACL_GET_QUALIFIER,	SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_get_file),			SMB_VFS_OP_SYS_ACL_GET_FILE,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_get_fd),			SMB_VFS_OP_SYS_ACL_GET_FD,			SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_clear_perms),		SMB_VFS_OP_SYS_ACL_CLEAR_PERMS,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_add_perm),			SMB_VFS_OP_SYS_ACL_ADD_PERM,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_to_text),			SMB_VFS_OP_SYS_ACL_TO_TEXT,			SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_init),				SMB_VFS_OP_SYS_ACL_INIT,			SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_create_entry),		SMB_VFS_OP_SYS_ACL_CREATE_ENTRY,	SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_set_tag_type),		SMB_VFS_OP_SYS_ACL_SET_TAG_TYPE,	SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_set_qualifier),	SMB_VFS_OP_SYS_ACL_SET_QUALIFIER,	SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_set_permset),		SMB_VFS_OP_SYS_ACL_SET_PERMSET,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_valid),			SMB_VFS_OP_SYS_ACL_VALID,			SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_set_file),			SMB_VFS_OP_SYS_ACL_SET_FILE,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_set_fd),			SMB_VFS_OP_SYS_ACL_SET_FD,			SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_delete_def_file),	SMB_VFS_OP_SYS_ACL_DELETE_DEF_FILE,	SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_get_perm),			SMB_VFS_OP_SYS_ACL_GET_PERM,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_free_text),		SMB_VFS_OP_SYS_ACL_FREE_TEXT,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_free_acl),			SMB_VFS_OP_SYS_ACL_FREE_ACL,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_sys_acl_free_qualifier),	SMB_VFS_OP_SYS_ACL_FREE_QUALIFIER,	SMB_VFS_LAYER_TRANSPARENT},
-
-	// EA operations.
-	{SMB_VFS_OP(skel_getxattr),		SMB_VFS_OP_GETXATTR,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_lgetxattr),	SMB_VFS_OP_LGETXATTR,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_fgetxattr),	SMB_VFS_OP_FGETXATTR,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_listxattr),	SMB_VFS_OP_LISTXATTR,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_llistxattr),	SMB_VFS_OP_LLISTXATTR,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_flistxattr),	SMB_VFS_OP_FLISTXATTR,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_removexattr),	SMB_VFS_OP_REMOVEXATTR,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_lremovexattr),	SMB_VFS_OP_LREMOVEXATTR,	SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_fremovexattr),	SMB_VFS_OP_FREMOVEXATTR,	SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_setxattr),		SMB_VFS_OP_SETXATTR,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_lsetxattr),	SMB_VFS_OP_LSETXATTR,		SMB_VFS_LAYER_TRANSPARENT},
-	{SMB_VFS_OP(skel_fsetxattr),	SMB_VFS_OP_FSETXATTR,		SMB_VFS_LAYER_TRANSPARENT},
-*/
 
 /* VFS module registration */
 
-NTSTATUS init_module(void)
+NTSTATUS vfs_vfsx_init(void)
 {
-	return smb_register_vfs(SMB_VFS_INTERFACE_VERSION, "vfsx", vfsx_op_tuples);
+	return smb_register_vfs(SMB_VFS_INTERFACE_VERSION, "vfsx", &vfsx_fns);
 }
