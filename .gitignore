@@ -2,3 +2,6 @@
 *.so
 *.log
 *.status
+module/Makefile
+module/configure
+module/module_config.h
