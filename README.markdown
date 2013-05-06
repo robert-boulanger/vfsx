@@ -1,6 +1,9 @@
 # VFSX – Samba VFS External Bridge
 
-## Version 0.2
+## Version 0.3-dev
+Samba VFS internal API is really unstable, so it takes a bit more :effort: to support multiple version at once. Current version is tested with samba 3.6.14.
+
+The deploying part below may not work with recent system, will update later.
 
 ### Overview
 
@@ -17,7 +20,7 @@ For Samba shares configured with VFSX as a VFS module, all client requests to ma
 Included with VFSX is an external handler written in Python. Developers can extend this implementation to provide custom operation handling.
 
 ### Deploying the VFSX Module
-VFSX requires Samba 3.0 or higher. All directory and file paths described in the following instructions are based on Fedora Core 2 so be sure to substitute paths as appropriate for your Linux distribution.
+VFSX requires Samba 3. or higher. All directory and file paths described in the following instructions are based on Fedora Core 2 so be sure to substitute paths as appropriate for your Linux distribution.
 
 1. Install Samba 3.0, including the source distribution.
 2. Download the VFSX source distribution: `git clone git://gitorious.org/vfsx/mainline.git.`
@@ -58,6 +61,7 @@ VFSX is distributed under the open source [Mozilla Public License][8]. The file 
 
 Copyright (C) 2004 Steven R. Farley. All rights reserved.  
 Copyright (C) 2009 Alexander Duscheleit.
+Copyright (C) 2013 Nurahmadie.
 
   [1]: http://gitorious.org/vfsx/vfsx/blobs/raw/master/docs/config.png
   [2]: http://gitorious.org/vfsx
