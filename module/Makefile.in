@@ -57,7 +57,7 @@ all: $(MODULES)
 #	@echo "Compiling $<"
 #	@$(CC) $(FLAGS) -c $< -D$*_init=samba_init_module
 
-install: default
+install: all
 	$(INSTALLCMD) -d $(VFS_LIBDIR)
 	$(INSTALLCMD) -m 755 *.$(SHLIBEXT) $(VFS_LIBDIR)
 
