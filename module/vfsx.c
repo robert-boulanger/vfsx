@@ -400,7 +400,7 @@ struct vfs_fn_pointers vfsx_fns = {
 
 /* VFS module registration */
 
-NTSTATUS vfs_vfsx_init(void)
+NTSTATUS init_samba_module(void)
 {
 	return smb_register_vfs(SMB_VFS_INTERFACE_VERSION, "vfsx", &vfsx_fns);
 }
