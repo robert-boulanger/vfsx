@@ -3,8 +3,6 @@
 ## Version 0.3-dev
 Samba VFS internal API is really unstable, so it takes a bit more :effort: to support multiple version at once. Current version is tested with samba 3.6.14.
 
-The deploying part below may not work with recent system, will update later.
-
 ### Overview
 
 VFSX is a transparent Samba Virtual File System (VFS) module which forwards operations to a process on the same machine for handing outside of the Samba daemon process (smbd). The external handler can be implemented in any language with support for Unix domain sockets (Python, Ruby, Perl, Java with Jtux) which is how VFSX and its external process communicates.
@@ -20,13 +18,15 @@ For Samba shares configured with VFSX as a VFS module, all client requests to ma
 Included with VFSX is an external handler written in Python. Developers can extend this implementation to provide custom operation handling.
 
 ### Deploying the VFSX Module
-VFSX requires Samba 3. or higher. All directory and file paths described in the following instructions are based on Fedora Core 2 so be sure to substitute paths as appropriate for your Linux distribution.
+VFSX requires Samba 3.6.x. All directory and file paths described in the following instructions are based on Ubuntu 13.04 substitute paths as appropriate for your Linux distribution.
 
-1. Install Samba 3.0, including the source distribution.
-2. Download the VFSX source distribution: `git clone git://gitorious.org/vfsx/mainline.git.`
-3. Edit  `vfsx/module/Makefile` and modify the `SAMBA\_SOURCE` variable to point to your Samba source directory.
-4. Build the VFSX shared library: `make`
-5. Attach VFSX to a Samba shared directory by adding the VFSX module name to the share's configuration parameters (found in `/etc/samba/smb.conf`). 
+1. Install Samba 3.6.14, including the source distribution.
+2. Download the VFSX source distribution: `git clone https://github.com/fudanchii/vfsx`.
+3. `cd vfsx/module`
+4. `./configure --prefix=<samba installation path> --with-samba-source=<samba source3 location>`
+5. Build the VFSX shared library: `make`
+6. Install with `make install`
+7. Attach VFSX to a Samba shared directory by adding the VFSX module name to the share's configuration parameters. 
 For example:  
 `[myshare]`  
 `comment = VFSX-Aware Shared Directory`  
@@ -34,13 +34,10 @@ For example:
 `valid users = myuser`  
 `read only = No`  
 `vfs objects = vfsx`
-6. Deploy the VFSX shared library (as root):  
-`cp vfsx/module/vfsx.so /usr/lib/samba/vfs/`
-7. Restart Samba (as root):  
-`/etc/rc.d/init.d/smb restart`
-8. Run the Python external event handler:  
+8. Restart Samba
+9. Run the Python external event handler:  
 `python vfsx/python/vfsx.py`
-9. <i>Access the share using smbclient or from a Windows system. By default the Python handler prints debug activity messages to the console. If the module has problems communicating with the external handler, error messages are written to syslog.</i>
+10. <i>Access the share using smbclient or from a Windows system. By default the Python handler prints debug activity messages to the console. If the module has problems communicating with the external handler, error messages are written to syslog.</i>
 
 ### Developing a Custom VFSX Handler with Python
 
