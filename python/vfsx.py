@@ -54,33 +54,32 @@ class VFSModuleSession(object):
 		return VFSModuleSession.__sessionClass
 	getSessionClass = staticmethod(getSessionClass)
 
-	def getSession(origpath, user):
+	def getSession(origpath):
 		sessions = VFSModuleSession.__sessions
-		key = (origpath, user)
+		key = origpath
 		if sessions.has_key(key):
 			session = sessions[key]
 			log.debug("Existing session: %s" % session)
 		else:
-			session = VFSModuleSession.__sessionClass(*key)
+			session = VFSModuleSession.__sessionClass(key)
 			sessions[key] = session
 			log.debug("New session: %s" % session)
 		return session
 	getSession = staticmethod(getSession)
 
 	def removeSession(session):
-		key = (session.origpath, session.user)
+		key = session.origpath
 		del VFSModuleSession.__sessions[key]
 		log.debug("Removed session: %s" % session)
 	removeSession = staticmethod(removeSession)
 
 	# Instance methods
 
-	def __init__(self, origpath, user):
+	def __init__(self, origpath):
 		self.origpath = origpath
-		self.user = user
 
 	def __str__(self):
-		return "user = %s, origpath = %s" % (self.user, self.origpath)
+		return "origpath = %s" % (self.origpath)
 
 	# This is the default method to call when a specific operation method is
 	# not found on the subclass.  The subclass can override this method to
@@ -139,7 +138,7 @@ class VFSModuleSession(object):
 
 
 
-# Expects a string of the form "operation:user:origpath:arg1,arg2,arg3" where
+# Expects a string of the form "operation:origpath:arg1,arg2,arg3" where
 # "operation" is the VFS operation.  It should exactly match the method on
 # VFSModuleSession.  A new VFSModuleSession is created for each "connect"
 # operation.
@@ -154,12 +153,13 @@ class VFSHandler(SocketServer.BaseRequestHandler):
 			# Handle message-parsing and operation execution error here.
 			# Socket communication errors should be propagated.
 			try:
-				(operation, user, origpath, args) = self.__parseMessage(msg)
-				result = self.__callOperation(operation, user, origpath, args)
+				(operation, origpath, args) = self.__parseMessage(msg)
+				result = self.__callOperation(operation, origpath, args)
 			except Exception, e:
 				result = VFSOperationResult(FAIL_ERROR)
 				log.exception(e)
-			self.request.send("%d" % result.status)
+			#sys.stderr.write("%s\n" % msg)
+			self.request.send("%d" % 0)
 
 		# The client probably closed the connection.
 		self.request.close()
@@ -167,17 +167,17 @@ class VFSHandler(SocketServer.BaseRequestHandler):
 
 	def __parseMessage(self, msg):
 		parts = msg.split(":")
-		(operation, user, origpath) = parts[0:3]
-		log.debug("  operation = '%s' user = '%s' origpath = '%s'" %
-			(operation, user, origpath))
+		(operation, origpath) = parts[0:2]
+		log.debug("  operation = '%s' origpath = '%s'" %
+			(operation, origpath))
 		args = []
-		if len(parts) > 3:
-			args = parts[3].split(",")
-			log.debug("  args = '%s'" % parts[3])
-		return (operation, user, origpath, args)
+		if len(parts) > 2:
+			args = parts[2].split(",")
+			log.debug("  args = '%s'" % parts[2])
+		return (operation, origpath, args)
 
-	def __callOperation(self, operation, user, origpath, args):
-		session = VFSModuleSession.getSession(origpath, user)
+	def __callOperation(self, operation, origpath, args):
+		session = VFSModuleSession.getSession(origpath)
 		if operation == "disconnect":
 			VFSModuleSession.removeSession(session)
 		sessionClass = VFSModuleSession.getSessionClass()
