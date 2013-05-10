@@ -71,7 +71,8 @@ static int vfsx_write_socket(const char *str, int close_socket)
 	char in[VFSX_MSG_IN_SIZE];
 	int ret;
 	struct sockaddr_un sa;
-	int result = VFSX_FAIL_ERROR;
+	// Assume the operation is success
+	int result = VFSX_SUCCESS_TRANSPARENT;
 
 	if (!connected) {
 		sd = socket(AF_UNIX, SOCK_STREAM, 0);
