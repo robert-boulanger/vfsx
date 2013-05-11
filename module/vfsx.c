@@ -20,6 +20,7 @@
  *
  * Contributor(s):
  * Copyright (C) 2009 Alexander Duscheleit
+ * Copyright (C) 2013 Nurahmadie
  *
  * ***** END LICENSE BLOCK ***** */
 
@@ -246,6 +247,37 @@ static int vfsx_close(vfs_handle_struct *handle, files_struct *fsp)
 	return result;
 }
 
+
+static NTSTATUS vfsx_createfile( struct vfs_handle_struct *handle,
+                                 struct smb_request *req,
+                                 uint16_t root_dir_fid,
+                                 struct smb_filename *smb_fname,
+                                 uint32_t access_mask,
+                                 uint32_t share_access,
+                                 uint32_t create_disposition,
+                                 uint32_t create_options,
+                                 uint32_t file_attributes,
+                                 uint32_t oplock_request,
+                                 uint64_t allocation_size,
+                                 uint32_t private_flags,
+                                 struct security_descriptor *sd,
+                                 struct ea_list *ea_list,
+                                 files_struct **fsp,
+                                 int *pinfo)
+{
+    int count;
+    char buf[VFSX_MSG_OUT_SIZE];
+
+    count = snprintf(buf, VFSX_MSG_OUT_SIZE, "create:%s:%s", handle->conn->origpath, smb_fname->base_name);
+    vfsx_execute(buf, count);
+    return SMB_VFS_NEXT_CREATE_FILE(handle,          req,             root_dir_fid,
+                                    smb_fname,       access_mask,     share_access,
+                                    create_disposition,               create_options,
+                                    file_attributes, oplock_request,  allocation_size,
+                                    private_flags,   sd,              ea_list,
+                                    fsp,             pinfo);
+}
+
 static ssize_t vfsx_read(vfs_handle_struct *handle, files_struct *fsp, void *data, size_t n)
 {
 	ssize_t result = -1;
@@ -389,6 +421,7 @@ struct vfs_fn_pointers vfsx_fns = {
     /* File operations */
     .open_fn = vfsx_open,
     .close_fn = vfsx_close,
+    .create_file = vfsx_createfile,
     .vfs_read = vfsx_read,
     .write = vfsx_write,
     .pread = vfsx_pread,
