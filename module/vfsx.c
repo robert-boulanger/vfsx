@@ -104,8 +104,6 @@ static int vfsx_write_socket(const char *str, int close_socket)
 			ret = read(sd, in, VFSX_MSG_IN_SIZE);
 			if (ret != -1) {
 				result = atoi(in);
-				/* too chatty */
-                /* syslog(LOG_NOTICE, "vfsx_write_socket (%d) received '%s'", count++, in); */
 				if (close_socket) {
 					syslog(LOG_NOTICE, "vfsx_write_socket closing normally");
 					close(sd);
@@ -163,9 +161,8 @@ static int vfsx_connect(vfs_handle_struct *handle, const char *svc, const char *
 	char buf[VFSX_MSG_OUT_SIZE];
 
 	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "connect:%s", handle->conn->origpath);
-	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
-		result = SMB_VFS_NEXT_CONNECT(handle, svc, user);
-	}
+	result = SMB_VFS_NEXT_CONNECT(handle, svc, user);
+	if (result >= 0 ) vfsx_execute(buf, count);
 	return result;
 }
 
@@ -175,10 +172,8 @@ static void vfsx_disconnect(vfs_handle_struct *handle)
 	char buf[VFSX_MSG_OUT_SIZE];
 
 	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "disconnect:%s", handle->conn->origpath);
-	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
-		SMB_VFS_NEXT_DISCONNECT(handle);
-	}
-	return;
+	SMB_VFS_NEXT_DISCONNECT(handle);
+	vfsx_execute(buf, count);
 }
 
 static DIR *vfsx_opendir(vfs_handle_struct *handle, const char *fname, const char *mask, uint32 attr)
@@ -189,9 +184,8 @@ static DIR *vfsx_opendir(vfs_handle_struct *handle, const char *fname, const cha
 	char buf[VFSX_MSG_OUT_SIZE];
 
 	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "opendir:%s:%s", handle->conn->origpath, fname);
-	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
-		result = SMB_VFS_NEXT_OPENDIR(handle, fname, mask, attr);
-	}
+	result = SMB_VFS_NEXT_OPENDIR(handle, fname, mask, attr);
+	if (result >= 0) vfsx_execute(buf, count);
 	return result;
 }
 
@@ -202,9 +196,8 @@ static int vfsx_mkdir(vfs_handle_struct *handle, const char *path, mode_t mode)
 	char buf[VFSX_MSG_OUT_SIZE];
 
 	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "mkdir:%s:%s,%d", handle->conn->origpath, path, mode);
-	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
-		result = SMB_VFS_NEXT_MKDIR(handle, path, mode);
-	}
+	result = SMB_VFS_NEXT_MKDIR(handle, path, mode);
+	if (result >= 0) vfsx_execute(buf, count);
 	return result;
 }
 
@@ -215,9 +208,8 @@ static int vfsx_rmdir(vfs_handle_struct *handle, const char *path)
 	char buf[VFSX_MSG_OUT_SIZE];
 
 	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "rmdir:%s:%s", handle->conn->origpath, path);
-	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
-		result = SMB_VFS_NEXT_RMDIR(handle, path);
-	}
+	result = SMB_VFS_NEXT_RMDIR(handle, path);
+	if (result >= 0) vfsx_execute(buf, count);
 	return result;
 }
 
@@ -228,9 +220,8 @@ static int vfsx_open(vfs_handle_struct *handle, struct smb_filename *fname, file
 	char buf[VFSX_MSG_OUT_SIZE];
 
 	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "open:%s:%s,%d,%d", handle->conn->origpath, fname->base_name, flags, mode);
-	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
-		result = SMB_VFS_NEXT_OPEN(handle, fname, fsp, flags, mode);
-	}
+	result = SMB_VFS_NEXT_OPEN(handle, fname, fsp, flags, mode);
+	if (result >= 0) vfsx_execute(buf, count);
 	return result;
 }
 
@@ -241,12 +232,10 @@ static int vfsx_close(vfs_handle_struct *handle, files_struct *fsp)
 	char buf[VFSX_MSG_OUT_SIZE];
 
 	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "close:%s:%s", fsp->conn->origpath, fsp->fsp_name->base_name);
-	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
-		result = SMB_VFS_NEXT_CLOSE(handle, fsp);
-	}
+	result = SMB_VFS_NEXT_CLOSE(handle, fsp);
+	if (result >= 0) vfsx_execute(buf, count);
 	return result;
 }
-
 
 static NTSTATUS vfsx_createfile( struct vfs_handle_struct *handle,
                                  struct smb_request *req,
@@ -278,6 +267,18 @@ static NTSTATUS vfsx_createfile( struct vfs_handle_struct *handle,
                                     fsp,             pinfo);
 }
 
+static int vfsx_mknod(vfs_handle_struct *handle,  const char *path, mode_t mode, SMB_DEV_T dev)
+{
+	int result = -1;
+	int count;
+	char buf[VFSX_MSG_OUT_SIZE];
+
+	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "create:%s:%s", handle->conn->origpath, path);
+	result = SMB_VFS_NEXT_MKNOD(handle, path, mode, dev);
+	if (result >= 0) vfsx_execute(buf, count);
+	return result;
+}
+
 static ssize_t vfsx_read(vfs_handle_struct *handle, files_struct *fsp, void *data, size_t n)
 {
 	ssize_t result = -1;
@@ -285,9 +286,8 @@ static ssize_t vfsx_read(vfs_handle_struct *handle, files_struct *fsp, void *dat
 	char buf[VFSX_MSG_OUT_SIZE];
 
 	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "read:%s:%s", fsp->conn->origpath, fsp->fsp_name->base_name);
-	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
-		result = SMB_VFS_NEXT_READ(handle, fsp, data, n);
-	}
+	result = SMB_VFS_NEXT_READ(handle, fsp, data, n);
+	if (result >= 0) vfsx_execute(buf, count);
 	return result;
 }
 
@@ -298,9 +298,8 @@ static ssize_t vfsx_write(vfs_handle_struct *handle, files_struct *fsp, const vo
 	char buf[VFSX_MSG_OUT_SIZE];
 
 	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "write:%s:%s", fsp->conn->origpath, fsp->fsp_name->base_name);
-	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
-		result = SMB_VFS_NEXT_WRITE(handle, fsp, data, n);
-	}
+	result = SMB_VFS_NEXT_WRITE(handle, fsp, data, n);
+	if (result >= 0) vfsx_execute(buf, count);
 	return result;
 }
 
@@ -311,9 +310,8 @@ static ssize_t vfsx_pread(vfs_handle_struct *handle, files_struct *fsp, void *da
 	char buf[VFSX_MSG_OUT_SIZE];
 
 	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "pread:%s:%s", fsp->conn->origpath, fsp->fsp_name->base_name);
-	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
-		result = SMB_VFS_NEXT_PREAD(handle, fsp, data, n, offset);
-	}
+	result = SMB_VFS_NEXT_PREAD(handle, fsp, data, n, offset);
+	if (result >= 0) vfsx_execute(buf, count);
 	return result;
 }
 
@@ -324,9 +322,8 @@ static ssize_t vfsx_pwrite(vfs_handle_struct *handle, files_struct *fsp, const v
 	char buf[VFSX_MSG_OUT_SIZE];
 
 	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "pwrite:%s:%s", fsp->conn->origpath, fsp->fsp_name->base_name);
-	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
-		result = SMB_VFS_NEXT_PWRITE(handle, fsp, data, n, offset);
-	}
+	result = SMB_VFS_NEXT_PWRITE(handle, fsp, data, n, offset);
+	if (result >= 0) vfsx_execute(buf, count);
 	return result;
 }
 
@@ -337,9 +334,8 @@ static off_t vfsx_lseek(vfs_handle_struct *handle, files_struct *fsp, off_t offs
 	char buf[VFSX_MSG_OUT_SIZE];
 
 	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "lseek:%s:%s", fsp->conn->origpath, fsp->fsp_name->base_name);
-	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
-		result = SMB_VFS_NEXT_LSEEK(handle, fsp, offset, whence);
-	}
+	result = SMB_VFS_NEXT_LSEEK(handle, fsp, offset, whence);
+	if (result >= 0) vfsx_execute(buf, count);
 	return result;
 }
 
@@ -352,9 +348,8 @@ static int vfsx_rename(vfs_handle_struct *handle,
 	char buf[VFSX_MSG_OUT_SIZE];
 
 	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "rename:%s:%s,%s", handle->conn->origpath, old->base_name, new->base_name);
-	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
-		result = SMB_VFS_NEXT_RENAME(handle, old, new);
-	}
+	result = SMB_VFS_NEXT_RENAME(handle, old, new);
+	if (result >= 0) vfsx_execute(buf, count);
 	return result;
 }
 
@@ -365,9 +360,8 @@ static int vfsx_unlink(vfs_handle_struct *handle, const struct smb_filename *pat
 	char buf[VFSX_MSG_OUT_SIZE];
 
 	count = snprintf(buf, VFSX_MSG_OUT_SIZE, "unlink:%s:%s", handle->conn->origpath, path->base_name);
-	if (vfsx_execute(buf, count) == VFSX_SUCCESS_TRANSPARENT) {
-		result = SMB_VFS_NEXT_UNLINK(handle, path);
-	}
+	result = SMB_VFS_NEXT_UNLINK(handle, path);
+	if (result >= 0) vfsx_execute(buf, count);
 	return result;
 }
 
@@ -421,7 +415,8 @@ struct vfs_fn_pointers vfsx_fns = {
     /* File operations */
     .open_fn = vfsx_open,
     .close_fn = vfsx_close,
-    .create_file = vfsx_createfile,
+    .create_file = vfsx_createfile, 
+    .mknod = vfsx_mknod,
     .vfs_read = vfsx_read,
     .write = vfsx_write,
     .pread = vfsx_pread,
