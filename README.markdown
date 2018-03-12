@@ -54,11 +54,11 @@ Unfortunatly since Samba 4 it is not longer possible to compile vfs modules outs
 2. Download the VFSX source distribution: `git clone https://github.com/robert-boulanger/vfsx.git`.
 3. `cd vfsx/samba4`
 4. `cp vfs_vfsx.c <samba source3 location>/modules`
-5. Add the contents of wscript_build to the end of <samba source3 location>/modules/wscript_build
-6. Edit <samba source3 location>/wscript  search for `default_shared_modules.extend`. (Around line 1610) Add `vfs_vfsx` to the list of vfs modules there. 
+5. Add the contents of wscript_build to the end of `<samba source3 location>/modules/wscript_build`.
+6. Edit `<samba source3 location>/wscript`  search for `default_shared_modules.extend`. (Around line 1610) Add `vfs_vfsx` to the list of vfs modules there. 
 7. `cd <samba source3 location>`
 8. `./autoconf.sh`
-9. `cd ..` to <samba source root>
+9. `cd ..` to `<samba source root>`
 10. `./configure or ./configure.developer`
 11. Build the whole samba: `make`
 12. Install with `sudo cp <samba source root>/bin/default/source3/modules/libvfs_module_vfsx.so /usr/lib/x86_64-linux-gnu/samba/vfs/vfsx.so` or wherever your samba is installed. (Alternativly take the pre-compiled version from the bin dir here (intel/amd 64bit))
@@ -108,4 +108,4 @@ Copyright (C) 2018 Robert Boulanger.
   [6]: http://www.samba.org/samba/docs/man/Samba-Developers-Guide/vfs.html
   [7]: http://www.python.org/
   [8]: http://www.mozilla.org/MPL/MPL-1.1.html
-  [8]: https://wiki.samba.org/index.php/Writing_a_Samba_VFS_Module
+  [9]: https://wiki.samba.org/index.php/Writing_a_Samba_VFS_Module
