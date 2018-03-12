@@ -21,7 +21,6 @@
  * Contributor(s):
  * Copyright (C) 2009 Alexander Duscheleit
  * Copyright (C) 2013 Nurahmadie
- * Copyright (C) 2018 Robert Boulanger robert.boulanger@scinteco.com
  *
  * ***** END LICENSE BLOCK ***** */
 
@@ -177,7 +176,7 @@ static void vfsx_disconnect(vfs_handle_struct *handle)
 	vfsx_execute(buf, count);
 }
 
-static DIR *vfsx_opendir(vfs_handle_struct *handle, const char *fname, const char *mask, uint32 attr)
+static DIR *vfsx_opendir(vfs_handle_struct *handle, const char *fname, const char *mask, uint32_t attr)
 {
 	// TODO: Is this the correct error value?
 	DIR *result = NULL;
@@ -238,34 +237,47 @@ static int vfsx_close(vfs_handle_struct *handle, files_struct *fsp)
 	return result;
 }
 
-static NTSTATUS vfsx_createfile( struct vfs_handle_struct *handle,
-                                 struct smb_request *req,
-                                 uint16_t root_dir_fid,
-                                 struct smb_filename *smb_fname,
-                                 uint32_t access_mask,
-                                 uint32_t share_access,
-                                 uint32_t create_disposition,
-                                 uint32_t create_options,
-                                 uint32_t file_attributes,
-                                 uint32_t oplock_request,
-                                 uint64_t allocation_size,
-                                 uint32_t private_flags,
-                                 struct security_descriptor *sd,
-                                 struct ea_list *ea_list,
-                                 files_struct **fsp,
-                                 int *pinfo)
+static NTSTATUS vfsx_createfile( vfs_handle_struct *handle,
+				    struct smb_request *req,
+				    uint16_t root_dir_fid,
+				    struct smb_filename *smb_fname,
+				    uint32_t access_mask,
+				    uint32_t share_access,
+				    uint32_t create_disposition,
+				    uint32_t create_options,
+				    uint32_t file_attributes,
+				    uint32_t oplock_request,
+				    struct smb2_lease *lease,
+				    uint64_t allocation_size,
+				    uint32_t private_flags,
+				    struct security_descriptor *sd,
+				    struct ea_list *ea_list,
+				    files_struct **result,
+				    int *pinfo,
+				    const struct smb2_create_blobs *in_context_blobs,
+				    struct smb2_create_blobs *out_context_blobs)
 {
     int count;
     char buf[VFSX_MSG_OUT_SIZE];
 
     count = snprintf(buf, VFSX_MSG_OUT_SIZE, "create:%s:%s", handle->conn->origpath, smb_fname->base_name);
     vfsx_execute(buf, count);
-    return SMB_VFS_NEXT_CREATE_FILE(handle,          req,             root_dir_fid,
-                                    smb_fname,       access_mask,     share_access,
-                                    create_disposition,               create_options,
-                                    file_attributes, oplock_request,  allocation_size,
-                                    private_flags,   sd,              ea_list,
-                                    fsp,             pinfo);
+    return create_file_default(handle->conn, req, root_dir_fid, smb_fname,
+				   access_mask, share_access,
+				   create_disposition, create_options,
+				   file_attributes, oplock_request, lease,
+				   allocation_size, private_flags,
+				   sd, ea_list, result,
+				   pinfo, in_context_blobs, out_context_blobs);
+	/*
+    return SMB_VFS_NEXT_CREATE_FILE(handle->conn, req, root_dir_fid, smb_fname,
+				   access_mask, share_access,
+				   create_disposition, create_options,
+				   file_attributes, oplock_request, lease,
+				   allocation_size, private_flags,
+				   sd, ea_list, result,
+				   pinfo, in_context_blobs, out_context_blobs);
+    */
 }
 
 static int vfsx_mknod(vfs_handle_struct *handle,  const char *path, mode_t mode, SMB_DEV_T dev)
@@ -406,31 +418,34 @@ struct vfs_fn_pointers vfsx_fns = {
 
     /* Disk operations */
     .connect_fn = vfsx_connect,
-    .disconnect = vfsx_disconnect,
+    .disconnect_fn = vfsx_disconnect,
 
     /* Directory operations */
-    .opendir = vfsx_opendir,
-    .mkdir = vfsx_mkdir,
-    .rmdir = vfsx_rmdir,
+    .opendir_fn = vfsx_opendir,
+    .mkdir_fn = vfsx_mkdir,
+    .rmdir_fn = vfsx_rmdir,
 
     /* File operations */
     .open_fn = vfsx_open,
     .close_fn = vfsx_close,
-    .create_file = vfsx_createfile,
-    .mknod = vfsx_mknod,
-    .vfs_read = vfsx_read,
-    .write = vfsx_write,
-    .pread = vfsx_pread,
-    .pwrite = vfsx_pwrite,
-    .lseek = vfsx_lseek,
-    .rename = vfsx_rename,
-    .unlink = vfsx_unlink,
+    .create_file_fn = vfsx_createfile,
+    .mknod_fn = vfsx_mknod,
+    .read_fn = vfsx_read,
+    .write_fn = vfsx_write,
+    .pread_fn = vfsx_pread,
+    .pwrite_fn = vfsx_pwrite,
+    .lseek_fn = vfsx_lseek,
+    .rename_fn = vfsx_rename,
+    .unlink_fn = vfsx_unlink,
 };
 
 
 /* VFS module registration */
 
-NTSTATUS init_samba_module(void)
+NTSTATUS vfs_vfsx_init(void);
+NTSTATUS vfs_vfsx_init(void)
 {
-	return smb_register_vfs(SMB_VFS_INTERFACE_VERSION, "vfsx", &vfsx_fns);
+        return smb_register_vfs(SMB_VFS_INTERFACE_VERSION, "vfsx", &vfsx_fns);
 }
+
+

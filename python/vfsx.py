@@ -85,7 +85,7 @@ class VFSModuleSession(object):
 	# not found on the subclass.  The subclass can override this method to
 	# return a different result.
 	def defaultOperation(self, *args):
-		return VFSOperationResult(NOT_IMPLEMENTED)
+		return VFSOperationResult(FAIL_NOT_IMPLEMENTED)
 
 	# VFS disk operations
 

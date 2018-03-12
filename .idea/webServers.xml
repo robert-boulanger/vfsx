@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="c0e02e95-1907-443b-8244-83d07e71656a" name="ubuntu" url="http://10.0.1.100">
+        <fileTransfer host="10.0.1.100" port="22" privateKey="$USER_HOME$/.ssh/id_rsa" rootFolder="/home/robert/sambasrc/source3/modules" accessType="SFTP" keyPair="true">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" />
+          </advancedOptions>
+          <option name="port" value="22" />
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
