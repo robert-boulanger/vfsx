@@ -97,6 +97,7 @@ VFSX is distributed under the open source [Mozilla Public License][8]. The file 
 Copyright (C) 2004 Steven R. Farley. All rights reserved.  
 Copyright (C) 2009 Alexander Duscheleit.  
 Copyright (C) 2013 Nurahmadie.
+
 Copyright (C) 2018 Robert Boulanger.
 
   [1]: http://gitorious.org/vfsx/vfsx/blobs/raw/master/docs/config.png
